@@ -49,7 +49,7 @@ app.get('/cos', (req, res) => {
             .filter(item => /\.(jpg|png|webp)$/.test(item.Key) && !exclude.includes(item.Key))
             .map(item => ({
                 img: `https://${cos_domain}/` + item.Key, // COS自定义cdn地址
-                title: item.Key.match(/\/([^./]+)\.[^.]+$/)[1],
+                title: item.Key.match(/([^/]+)\.\w+$/)[1],
                 time: item.LastModified.replace(/[TZ]/g, ' ').slice(0, -5)
             }));
         // 较新时间放在前
