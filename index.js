@@ -52,6 +52,8 @@ app.get('/cos', (req, res) => {
                 title: item.Key.match(/\/([^./]+)\.[^.]+$/)[1],
                 time: item.LastModified.replace(/[TZ]/g, ' ').slice(0, -5)
             }));
+        // 较新时间放在前
+        photo_list.reverse();
         res.json(photo_list);
     }).catch(error => {
         console.log('error', error);
