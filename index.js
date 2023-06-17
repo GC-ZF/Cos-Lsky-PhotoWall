@@ -53,7 +53,11 @@ app.get('/cos', (req, res) => {
                 time: item.LastModified.replace(/[TZ]/g, ' ').slice(0, -5)
             }));
         // 较新时间放在前
-        photo_list.reverse();
+        photo_list.sort(function(a, b) {
+            var timeA = new Date(a.time); // 将时间字符串转换为Date对象
+            var timeB = new Date(b.time);
+            return timeB - timeA; // 进行升序排序
+        });
         res.json(photo_list);
     }).catch(error => {
         console.log('error', error);
