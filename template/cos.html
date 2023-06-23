@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<!-- 腾讯云SDK -->
+		<script src="https://npm.elemecdn.com/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
+		<!-- 瀑布流排版 https://github.com/raphamorim/waterfall.js  -->
+		<script src="//cdnjs.cloudflare.com/ajax/libs/waterfall.js/1.0.2/waterfall.min.js"></script>
+		<!-- imgStatus https://github.com/raphamorim/imgStatus -->
+		<script src="https://npm.elemecdn.com/imgstatus/imgStatus.min.js"></script>
+		<!-- 图片时间 https://github.com/Tokinx/lately -->
+		<script src="https://cdn1.tianli0.top/gh/Tokinx/lately/lately.min.js"></script>
+		<!-- 图片灯箱 https://github.com/Tokinx/ViewImage -->
+		<script src="https://cdn1.tianli0.top/gh/Tokinx/ViewImage/view-image.min.js"></script>
+		<style>
+		/* bottom: 0px适配jasmine主题 */
+		.gallery-photos a img {margin: 0; border-radius:0;bottom: 0px;}
+		.gallery-photos{width:100%;margin-top: 10px;}
+		.gallery-photo{min-height:5rem;width:24.97%;padding:4px;position: relative;}
+		.gallery-photo a{border-radius:8px;display:block;overflow: hidden;}
+		.gallery-photo img{display: block;width:100%;animation: fadeIn 1s;cursor: pointer;transition: all .4s ease-in-out !important;}
+		.gallery-photo span.photo-title,.gallery-photo span.photo-time{max-width: calc(100% - 7px);line-height:1.8;position:absolute;left:4px;font-size:14px;background: rgba(0, 0, 0, 0.3);padding:0px 8px;color: #fff;animation: fadeIn 1s;}
+		.gallery-photo span.photo-title{bottom:4px;border-radius: 0 8px 0 8px;}
+		.gallery-photo span.photo-time{top:4px;border-radius: 8px 0 8px 0;}
+		.gallery-photo:hover img{transform: scale(1.1);}
+		@media screen and (max-width: 1100px) {.gallery-photo{width:33.3%;}}
+		@media screen and (max-width: 768px) {
+			.gallery-photo{width:49.9%;padding:3px}
+			.gallery-photo span.photo-time{display:none}
+			.gallery-photo span.photo-title{font-size:12px}
+		    .gallery-photo span.photo-title{left:3px;bottom:3px;}
+		}
+		@keyframes fadeIn{0% {opacity: 0;}100%{opacity: 1;}}
+		</style>
+	</head>
+	<body>
+		<!-- 挂载元素 -->
+		<div class="gallery-photos page"></div>
+
+		<script type="text/javascript">
+			// start 需要手动配置
+			// 自适应 填写当前页面路径例如blog.zhsher.cn/photos就填photos
+			window.onresize = () => {
+				if (location.pathname == '/photos/') waterfall('.gallery-photos');
+			};
+			// 存储桶自定义域名
+			domain = 'imgl.zhsher.cn'
+			// SECRETID 和 SECRETKEY 请登录 https://console.cloud.tencent.com/cam/capi 进行查看和管理
+			var cos = new COS({
+				SecretId: 'AKIDTmpcATXaOzLRP7ankRs4VkjzUN1PYS',
+				SecretKey: 'iY9VbVO4WpgRwCg4KOI4cz87JDwW1z',
+			});
+			// 过滤不想展示的图片 存储桶的绝对路径
+			exclude = []
+			
+			cos.getBucket({
+				// 存储桶名称
+				Bucket: 'zh-13104467',
+				// 存储桶所在地域
+				Region: 'ap-nanjing',
+				// 非必须，文件夹路径，默认全部
+				Prefix: '',// end 配置结束
+			}).then(data => {
+				// 处理拼接图片信息到photo_list filter过滤文件后缀
+				const photo_list = data.Contents
+					.filter(item => /\.(jpg|png|webp)$/.test(item.Key) && !exclude.includes(item.Key))
+					.map(item => ({
+						img: `https://${domain}/` + item.Key,
+						title: item.Key.match(/([^/]+)\.\w+$/)[1],
+						time: item.LastModified.replace(/[TZ]/g, ' ').slice(0, -5)
+					}));
+				// 较新时间放在前 
+				// 默认排序 文件夹路径优先时间排序 B/x.webp 2023.10,A/x.webp 2022.10 A排在B前，不是完全按时间顺序，所以不能用photo_list.reverse();
+				photo_list.sort(function(a, b) {
+					var timeA = new Date(a.time); 
+					var timeB = new Date(b.time);
+					return timeB - timeA; 
+				});
+				// 拼接dom元素 插入到.gallery-photos.page
+				let html = '';
+				photo_list.forEach(item => {
+					html +=
+						`<div class="gallery-photo"><a href="${item.img}" data-fancybox="gallery" class="fancybox" data-thumb="${item.img}"><img class="photo-img" loading='lazy' decoding="async" src="${item.img}"></a>`;
+					item.title ? html += `<span class="photo-title">${item.title}</span>` : '';
+					item.time ? html += `<span class="photo-time">${item.time}</span>` : '';
+					html += `</div>`;
+				});
+				document.querySelector('.gallery-photos.page').innerHTML = html;
+
+				// 瀑布流排版
+				imgStatus.watch('.photo-img', () => {
+					waterfall('.gallery-photos');
+				});
+
+				// 处理时间为x天前
+				window.Lately && Lately.init({
+					target: '.photo-time'
+				});
+
+				// 图片灯箱
+				window.ViewImage && ViewImage.init('.gallery-photo img');
+			});
+		</script>
+	</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<!-- 瀑布流排版 https://github.com/raphamorim/waterfall.js  -->
+		<script src="//cdnjs.cloudflare.com/ajax/libs/waterfall.js/1.0.2/waterfall.min.js"></script>
+		<!-- imgStatus https://github.com/raphamorim/imgStatus -->
+		<script src="https://npm.elemecdn.com/imgstatus/imgStatus.min.js"></script>
+		<!-- 图片时间 https://github.com/Tokinx/lately -->
+		<script src="https://cdn1.tianli0.top/gh/Tokinx/lately/lately.min.js"></script>
+		<!-- 图片灯箱 https://github.com/Tokinx/ViewImage -->
+		<script src="https://cdn1.tianli0.top/gh/Tokinx/ViewImage/view-image.min.js"></script>
+		<style>
+		/* bottom: 0px适配jasmine主题可能不适用你的主题，可以删掉 */
+		.gallery-photos a img {margin: 0; border-radius:0;bottom: 0px;}
+		.gallery-photos{width:100%;margin-top: 10px;}
+		.gallery-photo{min-height:5rem;width:24.97%;padding:4px;position: relative;}
+		.gallery-photo a{border-radius:8px;display:block;overflow: hidden;}
+		.gallery-photo img{display: block;width:100%;animation: fadeIn 1s;cursor: pointer;transition: all .4s ease-in-out !important;}
+		.gallery-photo span.photo-title,.gallery-photo span.photo-time{max-width: calc(100% - 7px);line-height:1.8;position:absolute;left:4px;font-size:14px;background: rgba(0, 0, 0, 0.3);padding:0px 8px;color: #fff;animation: fadeIn 1s;}
+		.gallery-photo span.photo-title{bottom:4px;border-radius: 0 8px 0 8px;}
+		.gallery-photo span.photo-time{top:4px;border-radius: 8px 0 8px 0;}
+		.gallery-photo:hover img{transform: scale(1.1);}
+		@media screen and (max-width: 1100px) {.gallery-photo{width:33.3%;}}
+		@media screen and (max-width: 768px) {
+			.gallery-photo{width:49.9%;padding:3px}
+			.gallery-photo span.photo-time{display:none}
+			.gallery-photo span.photo-title{font-size:12px}
+		    .gallery-photo span.photo-title{left:3px;bottom:3px;}
+		}
+		@keyframes fadeIn{0% {opacity: 0;}100%{opacity: 1;}}
+		</style>
+	</head>
+	<body>
+		<!-- 挂载元素 -->
+		<div class="gallery-photos page"></div>
+
+		<script type="text/javascript">
+			// start 需要手动配置
+			// 自适应 填写相册页面路径例如blog.zhsher.cn/photos就填photos
+			window.onresize = () => {
+				if (location.pathname == '/photos/') waterfall('.gallery-photos');
+			};
+
+			// 兰空域名
+			domain = 'test.zhsher.cn'
+			var myHeaders = new Headers();
+			// 兰空token
+			myHeaders.append("Authorization", "Bearer 1|zsNyAN4hPx0xWONcq8Zu01UpynZWQcTgBg26R6iP");
+			myHeaders.append("Accept", "application/json");
+			// 过滤不想展示的图片
+			exclude = ['2023/06/04/web开发07.webp']
+			// end 配置结束
+			var requestOptions = {
+				method: 'GET',
+				headers: myHeaders,
+				redirect: 'follow',
+			};
+
+			fetch(`http://${domain}/api/v1/images`, requestOptions)
+				.then(response => response.json())
+				.then(result => {
+					page_num = result.data.last_page; //获取页码
+					getPhoto(page_num)
+				})
+				.catch(error => console.log('error', error));
+
+			function getPhoto(page_num) {
+				// 需要遍历的页码
+				const urls = [];
+				for (var i = 1; i <= page_num; i++) {
+					urls.push(`http://${domain}/api/v1/images?page=${i}`)
+				}
+
+				const data = {};
+				const photo_list = []; // 保存每页的图片信息
+				Promise.all(urls.map(url =>
+					fetch(url, requestOptions)
+					.then(response => response.json())
+					.then(result => {
+						data[result.data.current_page] = result.data.data
+					})
+					.catch(error => console.log('error', error)))).then(() => {
+					//按页码保存图片信息到photo_list
+					for (var i = 1; i <= page_num; i++) {
+						photo_list.push(...data[i].filter(item => !exclude.includes(item.pathname)).map(item => ({
+							img: item.links.url,
+							title: item.name.match(/^(.*)\.(webp|png|jpg)$/)[1],
+							time: item.date
+						})))
+					}
+
+					// 拼接dom元素 插入到.gallery-photos.page
+					let html = '';
+					photo_list.forEach(item => {
+						html +=
+							`<div class="gallery-photo"><a href="${item.img}" data-fancybox="gallery" class="fancybox" data-thumb="${item.img}"><img class="photo-img" loading='lazy' decoding="async" src="${item.img}"></a>`;
+						item.title ? html += `<span class="photo-title">${item.title}</span>` : '';
+						item.time ? html += `<span class="photo-time">${item.time}</span>` : '';
+						html += `</div>`;
+					});
+					document.querySelector('.gallery-photos.page').innerHTML = html;
+
+					// 瀑布流排版
+					imgStatus.watch('.photo-img', () => {
+						waterfall('.gallery-photos');
+					});
+
+					// 处理时间为x天前
+					window.Lately && Lately.init({
+						target: '.photo-time'
+					});
+
+					// 图片灯箱
+					window.ViewImage && ViewImage.init('.gallery-photo img');
+				});
+			}
+		</script>
+	</body>
+</html>
