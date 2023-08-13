@@ -50,7 +50,7 @@ app.get('/cos', (req, res) => {
             .map(item => ({
                 img: `https://${cos_domain}/` + item.Key, // COS自定义cdn地址
                 title: item.Key.match(/([^/]+)\.\w+$/)[1],
-                time: item.LastModified.replace(/[TZ]/g, ' ').slice(0, -5)
+                time: item.LastModified
             }));
         // 较新时间放在前
         photo_list.sort(function(a, b) {
